@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Digital Campus Buddy - SR University</title>
+
+  <!-- Leaflet CSS/JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f4f4f4; color:#222; }
+    header { background:#2b2d42; color:#fff; padding:18px; text-align:center; }
+    nav { background:#8d99ae; display:flex; justify-content:center; gap:12px; padding:10px; flex-wrap:wrap; }
+    nav a { color:#fff; text-decoration:none; font-weight:600; cursor:pointer; padding:6px 10px; border-radius:4px; }
+    nav a:hover { background: rgba(255,255,255,0.08); }
+    .container { max-width:1200px; margin:18px auto; padding:0 16px 120px; }
+    .card { background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.06); padding:18px; margin-bottom:18px; }
+    h2 { color:#2b2d42; margin-bottom:8px; }
+    label { display:block; font-weight:600; margin-top:10px; color:#333; }
+    input[type="text"], select, textarea { width:100%; padding:9px; margin-top:6px; border:1px solid #d0d0d0; border-radius:6px; }
+    .btn { display:inline-block; background:#ef233c; color:#fff; padding:9px 14px; border-radius:6px; border:none; cursor:pointer; font-weight:700; text-decoration:none; }
+    .btn:hover { background:#d90429; }
+    table { width:100%; border-collapse:collapse; margin-top:14px; }
+    th, td { border:1px solid #e0e0e0; padding:10px; text-align:center; }
+    th { background:#ef233c; color:#fff; }
+    #chatHistory { background:#f9f9f9; padding:10px; border-radius:6px; max-height:240px; overflow:auto; border:1px solid #e7e7e7; margin-top:10px; }
+    .user { color:#2b2d42; font-weight:700; }
+    .bot { color:#ef233c; font-weight:700; }
+    .scrolling-container { background:#ef233c; color:#fff; overflow:hidden; white-space:nowrap; padding:10px; border-radius:6px; margin-top:8px; }
+    .scrolling-text { display:inline-block; padding-left:100%; animation:scrollText 15s linear infinite; }
+    @keyframes scrollText { from { transform:translateX(0); } to { transform:translateX(-100%);} }
+    .success-msg { background:#d4edda; color:#155724; padding:12px; border-radius:6px; border-left:4px solid #28a745; margin-top:10px; }
+    .notification-item { background:#fff3cd; padding:10px; margin:6px 0; border-radius:5px; border-left:4px solid #ffc107; }
+    #mapContainer { width:100%; height:600px; border-radius:8px; overflow:hidden; margin-top:12px; border:2px solid #2b2d42; position:relative; background:#e9e9e9; }
+    #leafletMap { width:100%; height:100%; display:block; }
+    #gmapsFrame { width:100%; height:100%; border:0; display:none; }
+    .map-controls { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+    .location-info-box { background:#e8f4f8; padding:12px; border-radius:6px; border-left:4px solid #2b2d42; margin-top:12px; display:none; }
+    .address-box { background:#fffacd; padding:12px; border-radius:6px; border-left:4px solid #ff9800; margin-bottom:10px; }
+    footer { position:fixed; bottom:0; left:0; right:0; background:#2b2d42; color:#fff; padding:10px; text-align:center; }
+    @media (max-width:720px) { #mapContainer{height:420px;} }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎓 Digital Campus Buddy</h1>
+    <p style="margin-top:6px;">SR University, Warangal – Smart Campus Assistant</p>
+  </header>
+
+  <nav>
+    <a onclick="scrollToSection('chatbot')">🤖 Chatbot</a>
+    <a onclick="scrollToSection('dashboard')">📊 Dashboard</a>
+    <a onclick="scrollToSection('notices')">📢 Notices</a>
+    <a onclick="scrollToSection('map')">📍 Map</a>
+  </nav>
+
+  <div class="container">
+    <!-- Chatbot -->
+    <div class="card" id="chatbot">
+      <h2>🤖 AI Chatbot</h2>
+      <p>Ask about schedules, hostels, events, placements, or campus location:</p>
+      <input id="chatInput" type="text" placeholder="Type question and press Enter or click Ask" />
+      <button class="btn" onclick="submitChat()">Ask</button>
+      <div id="chatHistory"></div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="card" id="dashboard">
+      <h2>📊 Student Dashboard</h2>
+      <form id="studentForm">
+        <label>Name</label><input id="studentName" type="text" required />
+        <label>Roll Number</label><input id="studentRoll" type="text" required />
+        <label>Department</label>
+        <select id="studentDept" required>
+          <option value="">Select Department</option><option>CSE</option><option>ECE</option><option>MECH</option><option>CIVIL</option><option>MBA</option>
+        </select>
+        <label>Semester</label>
+        <select id="studentSem" required>
+          <option value="">Select Semester</option><option>1st Semester</option><option>2nd Semester</option><option>3rd Semester</option><option>4th Semester</option><option>5th Semester</option><option>6th Semester</option><option>7th Semester</option><option>8th Semester</option>
+        </select>
+        <button class="btn" type="submit">✓ Submit Profile</button>
+      </form>
+      <div id="dashboardData"></div>
+    </div>
+
+    <!-- Notifications -->
+    <div class="card" id="notices">
+      <h2>📢 Notifications & Announcements</h2>
+      <div class="scrolling-container"><div class="scrolling-text" id="latestNotification">No notifications yet.</div></div>
+      <label style="margin-top:12px;">Post New Notification (admin)</label>
+      <input id="notificationInput" type="text" placeholder="Enter notification message" />
+      <button class="btn" onclick="postNotification()">Post</button>
+      <div id="notificationsList"></div>
+    </div>
+
+    <!-- Map -->
+    <div class="card" id="map">
+      <h2>📍 Interactive Campus Map & Location</h2>
+
+      <div class="address-box">
+        📌 <strong>SR University, Warangal</strong><br>
+        Plus Code: 3FQ8+MXF, Warangal, Telangana 506371<br>
+        Coordinates: 18.5793°N, 79.6340°E
+      </div>
+
+      <div class="map-controls">
+        <button class="btn" id="showLeafletBtn">Show Campus Map (OpenStreetMap)</button>
+        <a class="btn" id="openGoogle" href="https://maps.app.goo.gl/9si5XFVYjS55afyv7" target="_blank" rel="noopener">Open in Google Maps App / New Tab</a>
+      </div>
+
+      <h3 style="margin-top:12px;">🔍 Select Campus Building</h3>
+      <select id="locationSelect" onchange="showLocationInfo()">
+        <option value="">Choose a location...</option>
+        <option value="library">📚 Library (Block A)</option>
+        <option value="hostel">🏠 Boys Hostel (Block B)</option>
+        <option value="hostelg">🏠 Girls Hostel (Block C)</option>
+        <option value="cafeteria">🍽️ Cafeteria (Block D)</option>
+        <option value="lab">🔬 Computer Lab (Block E)</option>
+        <option value="playground">⚽ Playground (Block F)</option>
+        <option value="clinic">⚕️ Health Center (Block G)</option>
+        <option value="admin">🏛️ Admin Office</option>
+        <option value="gate">🚪 Main Gate</option>
+      </select>
+
+      <div class="location-info-box" id="locationInfo"></div>
+
+      <h3 style="margin-top:12px;">🗺️ Campus Map (Click to Explore)</h3>
+      <div id="mapContainer">
+        <div id="leafletMap"></div>
+        <iframe id="gmapsFrame" src="https://www.google.com/maps?q=18.5793,79.6340&z=17&output=embed" allowfullscreen="" loading="lazy"></iframe>
+      </div>
+
+      <h3 style="margin-top:12px;">📋 Campus Directory & Timings</h3>
+      <table>
+        <tr><th>Building</th><th>Location</th><th>Timing</th><th>Contact</th></tr>
+        <tr><td>📚 Library</td><td>Block A</td><td>8 AM - 8 PM</td><td>040-XXXX-XXXX</td></tr>
+        <tr><td>🏠 Boys Hostel</td><td>Block B</td><td>24/7</td><td>Warden Office</td></tr>
+        <tr><td>🏠 Girls Hostel</td><td>Block C</td><td>24/7</td><td>Warden Office</td></tr>
+        <tr><td>🍽️ Cafeteria</td><td>Block D</td><td>7 AM - 9 PM</td><td>040-XXXX-XXXX</td></tr>
+        <tr><td>🔬 Computer Lab</td><td>Block E</td><td>9 AM - 5 PM</td><td>Lab Tech</td></tr>
+        <tr><td>⚽ Playground</td><td>Block F</td><td>4 PM - 7 PM</td><td>Sports Office</td></tr>
+        <tr><td>⚕️ Health Center</td><td>Block G</td><td>9 AM - 5 PM</td><td>Clinic</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <footer>&copy; 2025 SR University, Warangal | Digital Campus Buddy</footer>
+
+  <script>
+    // state
+    let notificationsList = [];
+    let campusMap = null;
+    let markers = {};
+    const studentData = {};
+
+    // Utilities
+    function scrollToSection(id){ const el = document.getElementById(id); if(el) el.scrollIntoView({behavior:'smooth'}); }
+
+    // Student form
+    document.getElementById('studentForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      studentData.name = document.getElementById('studentName').value;
+      studentData.roll = document.getElementById('studentRoll').value;
+      studentData.dept = document.getElementById('studentDept').value;
+      studentData.sem = document.getElementById('studentSem').value;
+      document.getElementById('dashboardData').innerHTML = `
+        <div class="success-msg"><strong>✓ Profile saved</strong>
+        <p>Name: ${studentData.name}</p><p>Roll: ${studentData.roll}</p><p>Dept: ${studentData.dept}</p><p>Sem: ${studentData.sem}</p></div>`;
+      this.reset();
+    });
+
+    // Chatbot
+    function submitChat(){
+      const inputEl = document.getElementById('chatInput');
+      const input = (inputEl.value || '').toLowerCase().trim();
+      if(!input) return;
+      const chatHistory = document.getElementById('chatHistory');
+      let reply = "Sorry, try asking about schedule, hostel, event, placement, library, exam, fee, wifi, or location.";
+      if(input.includes('schedule')) reply = "Classes: 9 AM - 4 PM (Mon-Fri). Labs alternate days.";
+      else if(input.includes('hostel')) reply = "Hostel: apply at warden office. Mess timings 7:30-9:30 AM/PM.";
+      else if(input.includes('event')||input.includes('fest')) reply = "Tech Symposium on Oct 22. Register on portal.";
+      else if(input.includes('placement')) reply = "Next drive: Infosys. Check placement portal.";
+      else if(input.includes('library')) reply = "Library hours: 8 AM - 8 PM. Quiet zone 2nd floor.";
+      else if(input.includes('exam')) reply = "Mid exams from Nov 25. Check notices.";
+      else if(input.includes('fee')) reply = "Fee deadline: 15th of month. Pay via portal or admin office.";
+      else if(input.includes('wifi')) reply = "SSID: SRU_Campus. Get password from admin.";
+      else if(input.includes('location')||input.includes('map')) reply = "Campus location: 3FQ8+MXF, Warangal. See Campus Map section.";
+
+      chatHistory.innerHTML += `<p><span class="user">You:</span> ${input}</p><p><span class="bot">Bot:</span> ${reply}</p>`;
+      inputEl.value = '';
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+    document.getElementById('chatInput').addEventListener('keypress', function(e){ if(e.key==='Enter'){ e.preventDefault(); submitChat(); } });
+
+    // Notifications
+    function postNotification(){
+      const v = document.getElementById('notificationInput').value.trim();
+      if(!v) return alert('Enter a notification');
+      notificationsList.unshift(v);
+      document.getElementById('latestNotification').textContent = v;
+      document.getElementById('notificationInput').value = '';
+      updateNotificationsList();
+    }
+    function updateNotificationsList(){
+      const list = document.getElementById('notificationsList');
+      if(notificationsList.length===0){ list.innerHTML=''; return; }
+      list.innerHTML = '<h3>📌 Recent Notifications:</h3>';
+      notificationsList.slice(0,10).forEach(n=> list.innerHTML += `<div class="notification-item">${n}</div>`);
+    }
+    document.getElementById('notificationInput').addEventListener('keypress', function(e){ if(e.key==='Enter'){ e.preventDefault(); postNotification(); } });
+
+    // Map initialization (Leaflet)
+    function initializeMap(){
+      const campusLatLng = [18.5793,79.6340];
+      if(!campusMap){
+        campusMap = L.map('leafletMap', { preferCanvas:true }).setView(campusLatLng, 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors', maxZoom:19
+        }).addTo(campusMap);
+      } else {
+        campusMap.setView(campusLatLng,16);
+      }
+
+      // clear old markers
+      Object.keys(markers).forEach(k=>{ try{ campusMap.removeLayer(markers[k].marker); }catch(e){} });
+      markers = {};
+
+      // main marker
+      L.marker(campusLatLng).bindPopup('<b>SR University, Warangal</b><br>3FQ8+MXF, Telangana 506371').addTo(campusMap);
+
+      const buildings = {
+        library:   { lat:18.5795, lng:79.6340, name:"📚 Library", info:"Central Library | 8 AM - 8 PM", color:"blue" },
+        hostel:    { lat:18.5790, lng:79.6345, name:"🏠 Boys Hostel", info:"24/7", color:"red" },
+        hostelg:   { lat:18.5788, lng:79.6348, name:"🏠 Girls Hostel", info:"24/7", color:"pink" },
+        cafeteria: { lat:18.5791, lng:79.6338, name:"🍽️ Cafeteria", info:"7 AM - 9 PM", color:"orange" },
+        clinic:    { lat:18.5794, lng:79.6335, name:"⚕️ Health Center", info:"9 AM - 5 PM", color:"green" },
+        lab:       { lat:18.5792, lng:79.6342, name:"🔬 Computer Lab", info:"9 AM - 5 PM", color:"purple" },
+        playground:{ lat:18.5797, lng:79.6342, name:"⚽ Playground", info:"4 PM - 7 PM", color:"teal" },
+        admin:     { lat:18.5789, lng:79.6340, name:"🏛️ Admin Office", info:"9 AM - 5 PM", color:"darkred" },
+        gate:      { lat:18.5785, lng:79.6340, name:"🚪 Main Gate", info:"24/7 Security", color:"black" }
+      };
+
+      Object.keys(buildings).forEach(key=>{
+        const b = buildings[key];
+        const m = L.circleMarker([b.lat,b.lng], { radius:10, fillColor:b.color, color:'#000', weight:1, fillOpacity:0.9 })
+                    .bindPopup(`<b>${b.name}</b><br>${b.info}`).addTo(campusMap);
+        markers[key] = { marker:m, building:b };
+      });
+    }
+
+    // Show info and highlight
+    function showLocationInfo(){
+      const location = document.getElementById('locationSelect').value;
+      const infoBox = document.getElementById('locationInfo');
+      const info = {
+        library: "📚 Central Library (Block A) — 8 AM - 8 PM",
+        hostel: "🏠 Boys Hostel (Block B) — 24/7",
+        hostelg: "🏠 Girls Hostel (Block C) — 24/7",
+        cafeteria: "🍽️ Main Cafeteria (Block D) — 7 AM - 9 PM",
+        lab: "🔬 Computer Lab (Block E) — 9 AM - 5 PM",
+        playground: "⚽ Sports Ground (Block F) — 4 PM - 7 PM",
+        clinic: "⚕️ Health Center (Block G) — 9 AM - 5 PM",
+        admin: "🏛️ Admin Office — 9 AM - 5 PM",
+        gate: "🚪 Main Gate — 24/7 Security"
+      };
+      if(!location){ infoBox.style.display='none'; return; }
+      infoBox.innerHTML = info[location] || ''; infoBox.style.display='block';
+
+      // Leaflet view
+      if(campusMap && markers[location]){
+        const b = markers[location].building;
+        campusMap.setView([b.lat,b.lng],17);
+        markers[location].marker.openPopup();
+      } else {
+        // if google frame visible, change its src to focused coords
+        const g = document.getElementById('gmapsFrame');
+        if(g && g.style.display !== 'none' && markers[location]){
+          const b = markers[location].building;
+          g.src = `https://www.google.com/maps?q=${b.lat},${b.lng}&z=18&output=embed`;
+        }
+      }
+    }
+
+    // Toggle map views
+    function showLeaflet(){
+      document.getElementById('leafletMap').style.display = 'block';
+      document.getElementById('gmapsFrame').style.display = 'none';
+      setTimeout(()=> { if(campusMap) campusMap.invalidateSize(); }, 200);
+    }
+    // (showGoogleEmbed removed)
+
+    // init
+    window.addEventListener('load', function(){
+      initializeMap();
+      showLeaflet();
+      document.getElementById('showLeafletBtn').addEventListener('click', showLeaflet);
+      // removed: showGoogleBtn event listener (button removed)
+    });
+  </script>
+</body>
+</html>
